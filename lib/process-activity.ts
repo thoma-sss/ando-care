@@ -3,7 +3,7 @@ import { decrypt } from "./encryption";
 import { StravaClient, refreshStravaToken } from "./strava/client";
 import { LibreLinkUpClient } from "./librelink/client";
 import { DexcomShareClient } from "./dexcom/client";
-import { calculateGlucoseStats, generateGlucoseSummary } from "./cgm-stats";
+import { calculateGlucoseStats, formatCgmDescription } from "./cgm-stats";
 import type { LibreLinkUpRegion } from "./librelink/types";
 import type { DexcomServer } from "./dexcom/types";
 import type { ActivityJobData } from "./job-queue";
@@ -122,14 +122,14 @@ export async function processActivity(data: ActivityJobData): Promise<void> {
       return;
     }
 
-    // Generate summary text
+    // Generate CGM description with new format
     const unit = user.settings?.unit ?? "mg/dL";
-    const summary = generateGlucoseSummary(stats, unit);
+    const cgmDescription = formatCgmDescription(stats, unit, activityId);
 
-    // Update activity description
+    // Update activity description - CGM first, then original description
     const existingDescription = activity.description || "";
     const separator = existingDescription ? "\n\n" : "";
-    const newDescription = `${existingDescription}${separator}${summary}`;
+    const newDescription = `${cgmDescription}${separator}${existingDescription}`;
 
     await stravaClient.updateActivityDescription(activityId, newDescription);
 
