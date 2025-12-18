@@ -33,7 +33,7 @@ const DEFAULT_HEADERS: Record<string, string> = {
   "Pragma": "no-cache",
   "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
   "product": "llu.ios",
-  "version": "4.12.0",
+  "version": "4.16.0",
 };
 
 export class LibreLinkUpClient {
