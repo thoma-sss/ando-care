@@ -6,17 +6,20 @@ export interface LibreLinkUpLoginRequest {
 export interface LibreLinkUpLoginResponse {
   status: number;
   data: {
-    user: {
+    user?: {
       id: string;
       firstName: string;
       lastName: string;
       email: string;
     };
-    authTicket: {
+    authTicket?: {
       token: string;
       expires: number;
       duration: number;
     };
+    // Region redirect fields
+    redirect?: boolean;
+    region?: string;
   };
 }
 

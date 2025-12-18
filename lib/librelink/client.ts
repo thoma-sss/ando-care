@@ -23,14 +23,17 @@ const REGION_URLS: Record<LibreLinkUpRegion, string> = {
   CN: "https://api-cn.libreview.io",
 };
 
-// Required headers to bypass Cloudflare protection
-const DEFAULT_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
-  Accept: "application/json",
+// Required headers to bypass Cloudflare protection and satisfy API requirements
+const DEFAULT_HEADERS: Record<string, string> = {
+  "Accept-Encoding": "gzip, deflate, br",
+  "Cache-Control": "no-cache",
+  "Connection": "keep-alive",
   "Content-Type": "application/json",
-  version: "4.16.0",
-  product: "llu.ios",
+  "Accept": "application/json",
+  "Pragma": "no-cache",
+  "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+  "product": "llu.ios",
+  "version": "4.12.0",
 };
 
 export class LibreLinkUpClient {
@@ -48,13 +51,13 @@ export class LibreLinkUpClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       ...DEFAULT_HEADERS,
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (this.token) {
-      (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     const response = await fetch(url, {
@@ -62,18 +65,24 @@ export class LibreLinkUpClient {
       headers,
     });
 
+    const responseText = await response.text();
+    
     if (!response.ok) {
-      const errorText = await response.text();
       throw new Error(
-        `LibreLinkUp API error: ${response.status} - ${errorText}`
+        `LibreLinkUp API error: ${response.status} - ${responseText}`
       );
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new Error(`Invalid JSON response from LibreLinkUp: ${responseText}`);
+    }
 
-    // Check for API-level errors
-    if (data.status !== 0) {
-      throw new Error(`LibreLinkUp error: ${data.error?.message || "Unknown error"}`);
+    // Check for API-level errors (status !== 0 means error)
+    if (data.status !== undefined && data.status !== 0) {
+      throw new Error(`LibreLinkUp error: ${data.error?.message || JSON.stringify(data)}`);
     }
 
     return data;
@@ -81,6 +90,7 @@ export class LibreLinkUpClient {
 
   /**
    * Login to LibreLinkUp and get authentication token
+   * Handles region redirects automatically
    */
   async login(email: string, password: string): Promise<void> {
     const response = await this.request<LibreLinkUpLoginResponse>(
@@ -90,6 +100,21 @@ export class LibreLinkUpClient {
         body: JSON.stringify({ email, password }),
       }
     );
+
+    // Handle region redirect if needed
+    if (response.data.redirect && response.data.region) {
+      const newRegion = response.data.region.toUpperCase() as LibreLinkUpRegion;
+      if (REGION_URLS[newRegion]) {
+        this.region = newRegion;
+        this.baseUrl = REGION_URLS[newRegion];
+        // Retry login with the new region
+        return this.login(email, password);
+      }
+    }
+
+    if (!response.data.authTicket?.token) {
+      throw new Error("No authentication token received from LibreLinkUp");
+    }
 
     this.token = response.data.authTicket.token;
   }
@@ -184,6 +209,7 @@ export async function testLibreLinkUpConnection(
   message: string;
   readingsCount?: number;
   connections?: Array<{ id: string; name: string }>;
+  actualRegion?: string;
 }> {
   try {
     const client = new LibreLinkUpClient(region);
@@ -207,6 +233,7 @@ export async function testLibreLinkUpConnection(
           id: c.patientId,
           name: `${c.firstName} ${c.lastName}`,
         })),
+        actualRegion: client.getRegion(),
       };
     }
 
@@ -218,6 +245,7 @@ export async function testLibreLinkUpConnection(
       success: true,
       message: `Connection successful - Found ${glucoseData.graphData.length} glucose readings`,
       readingsCount: glucoseData.graphData.length,
+      actualRegion: client.getRegion(),
     };
   } catch (error) {
     return {
@@ -226,4 +254,3 @@ export async function testLibreLinkUpConnection(
     };
   }
 }
-
