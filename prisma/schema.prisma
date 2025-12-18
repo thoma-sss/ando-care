@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  notified  Boolean  @default(false)
+}
+
+model User {
+  id              String    @id @default(cuid())
+  athleteId       BigInt    @unique
+  firstName       String?
+  lastName        String?
+  profilePicture  String?
+  cgmProvider     String?   // "librelink" | "dexcom"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  stravaToken     StravaToken?
+  libreLinkUpCreds LibreLinkUpCreds?
+  dexcomCreds     DexcomCreds?
+  settings        Settings?
+  activityLogs    ActivityUpdateLog[]
+  activityCgmData ActivityCgmData[]
+}
+
+model StravaToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scope        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LibreLinkUpCreds {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  encryptedEmail    String
+  encryptedPassword String
+  region            String   @default("EU")
+  patientId         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DexcomCreds {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  encryptedUsername String
+  encryptedPassword String
+  server            String   @default("shareous1.dexcom.com")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Settings {
+  id            String @id @default(cuid())
+  userId        String @unique
+  lowThreshold  Int    @default(70)
+  highThreshold Int    @default(180)
+  unit          String @default("mg/dL") // "mg/dL" | "mmol/L"
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityUpdateLog {
+  id          String   @id @default(cuid())
+  userId      String
+  activityId  BigInt
+  status      String   // "success" | "error" | "skipped"
+  message     String?
+  cgmPoints   Int?
+  processedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, activityId])
+}
+
+model ActivityCgmData {
+  id          String   @id @default(cuid())
+  userId      String
+  activityId  BigInt
+  dataPoints  Json     // [{timestamp: string, value: number}]
+  startTime   DateTime
+  endTime     DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, activityId])
+  @@index([userId, createdAt])
+}
