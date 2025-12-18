@@ -1,7 +1,3 @@
-import axios, { AxiosInstance } from "axios";
-import { CookieJar } from "tough-cookie";
-import { HttpCookieAgent, HttpsCookieAgent } from "http-cookie-agent/http";
-import crypto from "crypto";
 import type {
   LibreLinkUpLoginResponse,
   LibreLinkUpConnectionsResponse,
@@ -10,155 +6,107 @@ import type {
   GlucoseReading,
 } from "./types";
 
-// Region to API endpoint mapping
-const LLU_API_ENDPOINTS: Record<LibreLinkUpRegion, string> = {
-  AE: "api-ae.libreview.io",
-  AP: "api-ap.libreview.io",
-  AU: "api-au.libreview.io",
-  CA: "api-ca.libreview.io",
-  CN: "api.libreview.cn",
-  DE: "api-de.libreview.io",
-  EU: "api-eu.libreview.io",
-  EU2: "api-eu2.libreview.io",
-  FR: "api-fr.libreview.io",
-  JP: "api-jp.libreview.io",
-  LA: "api-la.libreview.io",
-  RU: "api-ru.libreview.io",
-  US: "api-us.libreview.io",
+// Region to API URL mapping
+const REGION_URLS: Record<LibreLinkUpRegion, string> = {
+  EU: "https://api-eu.libreview.io",
+  EU2: "https://api-eu2.libreview.io",
+  US: "https://api-us.libreview.io",
+  DE: "https://api-de.libreview.io",
+  FR: "https://api-fr.libreview.io",
+  CA: "https://api-ca.libreview.io",
+  AU: "https://api-au.libreview.io",
+  AP: "https://api-ap.libreview.io",
+  AE: "https://api-ae.libreview.io",
+  JP: "https://api-jp.libreview.io",
+  LA: "https://api-la.libreview.io",
+  RU: "https://api-ru.libreview.io",
+  CN: "https://api-cn.libreview.io",
 };
 
-// Stealth User-Agent (iPhone Safari)
-const USER_AGENT =
-  "Mozilla/5.0 (iPhone; CPU OS 17_4.1 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/17.4.1 Mobile/10A5355d Safari/8536.25";
-
-const LIBRE_LINK_UP_VERSION = "4.16.0";
-const LIBRE_LINK_UP_PRODUCT = "llu.ios";
-
-// Stealth TLS cipher configuration (avoid Cloudflare fingerprinting)
-const defaultCiphers = crypto.constants.defaultCipherList.split(":");
-const stealthCiphers = [
-  defaultCiphers[0],
-  defaultCiphers[2],
-  defaultCiphers[1],
-  ...defaultCiphers.slice(3),
-].join(":");
+// Required headers to bypass Cloudflare protection
+const DEFAULT_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+  Accept: "application/json",
+  "Content-Type": "application/json",
+  version: "4.16.0",
+  product: "llu.ios",
+};
 
 export class LibreLinkUpClient {
-  private axiosInstance: AxiosInstance;
-  private region: LibreLinkUpRegion;
   private baseUrl: string;
-  private authToken: string | null = null;
-  private accountId: string | null = null;
-  private cookieJar: CookieJar;
+  private token: string | null = null;
+  private region: LibreLinkUpRegion;
 
   constructor(region: LibreLinkUpRegion = "EU") {
     this.region = region;
-    this.baseUrl = `https://${LLU_API_ENDPOINTS[region] || LLU_API_ENDPOINTS["EU"]}`;
-    this.cookieJar = new CookieJar();
-
-    // Create stealth HTTPS agent with cookie support
-    const httpsAgent = new HttpsCookieAgent({
-      cookies: { jar: this.cookieJar },
-      ciphers: stealthCiphers,
-      keepAlive: true,
-    });
-
-    const httpAgent = new HttpCookieAgent({
-      cookies: { jar: this.cookieJar },
-      keepAlive: true,
-    });
-
-    this.axiosInstance = axios.create({
-      httpsAgent,
-      httpAgent,
-      withCredentials: true,
-      headers: {
-        "User-Agent": USER_AGENT,
-        "Content-Type": "application/json;charset=UTF-8",
-        "version": LIBRE_LINK_UP_VERSION,
-        "product": LIBRE_LINK_UP_PRODUCT,
-      },
-    });
+    this.baseUrl = REGION_URLS[region];
   }
 
-  /**
-   * Get authenticated headers with account-id hash
-   */
-  private getAuthHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      "User-Agent": USER_AGENT,
-      "Content-Type": "application/json;charset=UTF-8",
-      "version": LIBRE_LINK_UP_VERSION,
-      "product": LIBRE_LINK_UP_PRODUCT,
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const headers: HeadersInit = {
+      ...DEFAULT_HEADERS,
+      ...options.headers,
     };
 
-    if (this.authToken) {
-      headers["Authorization"] = `Bearer ${this.authToken}`;
+    if (this.token) {
+      (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
     }
 
-    if (this.accountId) {
-      // account-id is the SHA256 hash of the user ID
-      headers["account-id"] = crypto
-        .createHash("sha256")
-        .update(this.accountId)
-        .digest("hex");
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `LibreLinkUp API error: ${response.status} - ${errorText}`
+      );
     }
 
-    return headers;
+    const data = await response.json();
+
+    // Check for API-level errors
+    if (data.status !== 0) {
+      throw new Error(`LibreLinkUp error: ${data.error?.message || "Unknown error"}`);
+    }
+
+    return data;
   }
 
   /**
    * Login to LibreLinkUp and get authentication token
-   * Handles region redirects automatically
    */
   async login(email: string, password: string): Promise<void> {
-    const response = await this.axiosInstance.post<LibreLinkUpLoginResponse>(
-      `${this.baseUrl}/llu/auth/login`,
-      { email, password }
+    const response = await this.request<LibreLinkUpLoginResponse>(
+      "/llu/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      }
     );
 
-    if (response.data.status !== 0) {
-      throw new Error(`LibreLinkUp login failed: ${JSON.stringify(response.data)}`);
-    }
-
-    // Handle region redirect
-    if (response.data.data.redirect && response.data.data.region) {
-      const newRegion = response.data.data.region.toUpperCase() as LibreLinkUpRegion;
-      if (LLU_API_ENDPOINTS[newRegion]) {
-        this.region = newRegion;
-        this.baseUrl = `https://${LLU_API_ENDPOINTS[newRegion]}`;
-        // Retry login with the correct region
-        return this.login(email, password);
-      }
-      throw new Error(`Unknown region redirect: ${response.data.data.region}`);
-    }
-
-    if (!response.data.data.authTicket?.token) {
-      throw new Error("No authentication token received from LibreLinkUp");
-    }
-
-    this.authToken = response.data.data.authTicket.token;
-    this.accountId = response.data.data.user?.id || null;
+    this.token = response.data.authTicket.token;
   }
 
   /**
    * Get list of connected patients
    */
   async getConnections(): Promise<LibreLinkUpConnectionsResponse["data"]> {
-    if (!this.authToken) {
+    if (!this.token) {
       throw new Error("Not authenticated. Call login() first.");
     }
 
-    const response = await this.axiosInstance.get<LibreLinkUpConnectionsResponse>(
-      `${this.baseUrl}/llu/connections`,
-      { headers: this.getAuthHeaders() }
+    const response = await this.request<LibreLinkUpConnectionsResponse>(
+      "/llu/connections"
     );
 
-    if (response.data.status !== 0) {
-      throw new Error(`Failed to get connections: ${JSON.stringify(response.data)}`);
-    }
-
-    return response.data.data;
+    return response.data;
   }
 
   /**
@@ -167,20 +115,15 @@ export class LibreLinkUpClient {
   async getGlucoseData(
     patientId: string
   ): Promise<LibreLinkUpGraphResponse["data"]> {
-    if (!this.authToken) {
+    if (!this.token) {
       throw new Error("Not authenticated. Call login() first.");
     }
 
-    const response = await this.axiosInstance.get<LibreLinkUpGraphResponse>(
-      `${this.baseUrl}/llu/connections/${patientId}/graph`,
-      { headers: this.getAuthHeaders() }
+    const response = await this.request<LibreLinkUpGraphResponse>(
+      `/llu/connections/${patientId}/graph`
     );
 
-    if (response.data.status !== 0) {
-      throw new Error(`Failed to get glucose data: ${JSON.stringify(response.data)}`);
-    }
-
-    return response.data.data;
+    return response.data;
   }
 
   /**
@@ -194,7 +137,7 @@ export class LibreLinkUpClient {
     const data = await this.getGlucoseData(patientId);
 
     let readings: GlucoseReading[] = data.graphData.map((point) => ({
-      timestamp: parseLibreLinkTimestamp(point.Timestamp),
+      timestamp: point.Timestamp,
       value: point.ValueInMgPerDl,
       isHigh: point.isHigh,
       isLow: point.isLow,
@@ -224,28 +167,7 @@ export class LibreLinkUpClient {
    * Check if authenticated
    */
   isAuthenticated(): boolean {
-    return this.authToken !== null;
-  }
-}
-
-/**
- * Parse LibreLinkUp timestamp format
- * Format: "1/15/2025 10:30:00 AM" (MM/DD/YYYY hh:mm:ss AM/PM)
- */
-function parseLibreLinkTimestamp(timestamp: string): string {
-  try {
-    const [datePart, timePart, meridiem] = timestamp.split(" ");
-    const [month, day, year] = datePart.split("/").map(Number);
-    let [hours, minutes, seconds] = timePart.split(":").map(Number);
-
-    if (meridiem === "PM" && hours !== 12) hours += 12;
-    if (meridiem === "AM" && hours === 12) hours = 0;
-
-    const date = new Date(year, month - 1, day, hours, minutes, seconds);
-    return date.toISOString();
-  } catch {
-    // If parsing fails, return the original timestamp
-    return timestamp;
+    return this.token !== null;
   }
 }
 
@@ -262,7 +184,6 @@ export async function testLibreLinkUpConnection(
   message: string;
   readingsCount?: number;
   connections?: Array<{ id: string; name: string }>;
-  actualRegion?: string;
 }> {
   try {
     const client = new LibreLinkUpClient(region);
@@ -273,7 +194,7 @@ export async function testLibreLinkUpConnection(
     if (connections.length === 0) {
       return {
         success: false,
-        message: "No connected patients found. Please add a connection in LibreLinkUp app.",
+        message: "No connected patients found. Please add a connection in LibreLinkUp.",
       };
     }
 
@@ -286,7 +207,6 @@ export async function testLibreLinkUpConnection(
           id: c.patientId,
           name: `${c.firstName} ${c.lastName}`,
         })),
-        actualRegion: client.getRegion(),
       };
     }
 
@@ -298,7 +218,6 @@ export async function testLibreLinkUpConnection(
       success: true,
       message: `Connection successful - Found ${glucoseData.graphData.length} glucose readings`,
       readingsCount: glucoseData.graphData.length,
-      actualRegion: client.getRegion(),
     };
   } catch (error) {
     return {
@@ -307,3 +226,4 @@ export async function testLibreLinkUpConnection(
     };
   }
 }
+

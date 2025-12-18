@@ -6,40 +6,32 @@ export interface LibreLinkUpLoginRequest {
 export interface LibreLinkUpLoginResponse {
   status: number;
   data: {
-    user?: {
+    user: {
       id: string;
       firstName: string;
       lastName: string;
       email: string;
     };
-    authTicket?: {
+    authTicket: {
       token: string;
       expires: number;
       duration: number;
     };
-    // Region redirect fields
-    redirect?: boolean;
-    region?: string;
   };
 }
 
 export interface LibreLinkUpConnection {
   id: string;
   patientId: string;
-  country?: string;
-  status?: number;
   firstName: string;
   lastName: string;
-  targetLow?: number;
-  targetHigh?: number;
-  uom?: number;
   glucoseMeasurement?: {
     FactoryTimestamp: string;
     Timestamp: string;
     type: number;
     ValueInMgPerDl: number;
-    TrendArrow?: number;
-    TrendMessage?: string | null;
+    TrendArrow: number;
+    TrendMessage: string | null;
     MeasurementColor: number;
     GlucoseUnits: number;
     Value: number;
@@ -69,7 +61,6 @@ export interface GlucoseGraphDataPoint {
   Value: number;
   isHigh: boolean;
   isLow: boolean;
-  TrendArrow?: number;
 }
 
 export interface LibreLinkUpGraphResponse {
@@ -78,19 +69,19 @@ export interface LibreLinkUpGraphResponse {
 }
 
 export type LibreLinkUpRegion =
-  | "AE"
-  | "AP"
-  | "AU"
-  | "CA"
-  | "CN"
-  | "DE"
   | "EU"
   | "EU2"
+  | "US"
+  | "DE"
   | "FR"
+  | "CA"
+  | "AU"
+  | "AP"
+  | "AE"
   | "JP"
   | "LA"
   | "RU"
-  | "US";
+  | "CN";
 
 export interface GlucoseReading {
   timestamp: string;
@@ -98,3 +89,4 @@ export interface GlucoseReading {
   isHigh: boolean;
   isLow: boolean;
 }
+

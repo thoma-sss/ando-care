@@ -90,78 +90,28 @@ export function filterReadingsByTimeRange(
 }
 
 /**
- * Generate a combined progress bar with colored blocks
- * 🟥 = Low (hypoglycemia) < 70 mg/dL
- * 🟩 = In-range 70-180 mg/dL
- * 🟨 = High (hyperglycemia) > 180 mg/dL
+ * Format glucose stats as a string for Strava description
  */
-export function generateProgressBar(
-  timeLowPct: number,
-  timeInRangePct: number,
-  timeHighPct: number
-): string {
-  const blocks = 10;
-  const lowBlocks = Math.round((timeLowPct / 100) * blocks);
-  const highBlocks = Math.round((timeHighPct / 100) * blocks);
-  // Ensure we always have exactly 10 blocks
-  const inRangeBlocks = blocks - lowBlocks - highBlocks;
-
-  return "🟥".repeat(Math.max(0, lowBlocks)) + 
-         "🟩".repeat(Math.max(0, inRangeBlocks)) + 
-         "🟨".repeat(Math.max(0, highBlocks));
-}
-
-/**
- * Format glucose value with unit
- */
-export function formatGlucoseValue(value: number, unit: string): string {
-  if (unit === "mmol/L") {
-    return `${mgdlToMmol(value)} mmol/L`;
-  }
-  return `${value} mg/dL`;
-}
-
-/**
- * Format CGM description for Strava activity
- * New format with emojis and progress bar
- */
-export function formatCgmDescription(
+export function formatGlucoseStatsForStrava(
   stats: GlucoseStats,
-  unit: string = "mg/dL",
-  activityId?: number | bigint
+  unit: string = "mg/dL"
 ): string {
-  const roundedInRange = Math.round(stats.timeInRange);
-  const progressBar = generateProgressBar(
-    stats.timeBelowRange,
-    stats.timeInRange,
-    stats.timeAboveRange
-  );
+  const lines = [
+    `[CGM] In-range: ${stats.timeInRange}% | <70: ${stats.timeBelowRange}% | >180: ${stats.timeAboveRange}%`,
+    `Avg: ${stats.average} ${unit} | Min: ${stats.min} | Max: ${stats.max}`,
+  ];
 
-  const avgFormatted = formatGlucoseValue(stats.average, unit);
-  const minFormatted = formatGlucoseValue(stats.min, unit);
-  const maxFormatted = formatGlucoseValue(stats.max, unit);
-
-  let description = `🎯 ${roundedInRange}% in Range  ${progressBar}
-🩸 Avg : ${avgFormatted} - Min : ${minFormatted} - Max : ${maxFormatted}
-⚡ Powered by Ando Care ⚡`;
-
-  // Add link to detailed report if activityId is provided
-  if (activityId) {
-    const baseUrl = process.env.APP_BASE_URL || "https://ando.care";
-    description += `\n📈 Detailed CGM report: ${baseUrl}/activity/${activityId}`;
-  }
-
-  return description;
+  return lines.join(" | ");
 }
 
 /**
- * Generate a compact glucose summary for Strava (legacy format)
+ * Generate a compact glucose summary for Strava
  */
 export function generateGlucoseSummary(
   stats: GlucoseStats,
   unit: string = "mg/dL"
 ): string {
-  return formatCgmDescription(stats, unit);
+  return `[CGM] In-range: ${stats.timeInRange}% | <70: ${stats.timeBelowRange}% | >180: ${stats.timeAboveRange}% | Avg: ${stats.average} ${unit} | Min: ${stats.min} | Max: ${stats.max}`;
 }
 
 /**
@@ -177,3 +127,4 @@ export function mgdlToMmol(mgdl: number): number {
 export function mmolToMgdl(mmol: number): number {
   return Math.round(mmol * 18.0182);
 }
+
