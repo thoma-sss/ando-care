@@ -188,7 +188,7 @@ export default function LandingPage() {
                   {" | "}
                   <span className="text-[#F59E0B]">&gt;180: 18%</span>
                   <br />
-                  Avg: 121 mg/dL | Min: 68 | Max: 192
+                  Avg: 6.7 mmol/L | Min: 3.8 | Max: 10.7
                 </p>
               </div>
             </div>

@@ -47,7 +47,7 @@ export default async function ActivityPage({ params }: ActivityPageProps) {
     high: settings?.highThreshold ?? 180,
   });
 
-  const unit = settings?.unit ?? "mg/dL";
+  const unit = (settings?.unit ?? "mmol/L") as "mg/dL" | "mmol/L";
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] bg-gradient-radial">

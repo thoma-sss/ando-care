@@ -122,14 +122,14 @@ export async function processActivity(data: ActivityJobData): Promise<void> {
       return;
     }
 
-    // Generate summary text
-    const unit = user.settings?.unit ?? "mg/dL";
-    const summary = generateGlucoseSummary(stats, unit);
+    // Generate CGM summary with emojis and link
+    const unit = user.settings?.unit ?? "mmol/L";
+    const cgmSummary = generateGlucoseSummary(stats, unit, activityId);
 
-    // Update activity description
+    // Update activity description - CGM first, then original description
     const existingDescription = activity.description || "";
     const separator = existingDescription ? "\n\n" : "";
-    const newDescription = `${existingDescription}${separator}${summary}`;
+    const newDescription = `${cgmSummary}${separator}${existingDescription}`;
 
     await stravaClient.updateActivityDescription(activityId, newDescription);
 

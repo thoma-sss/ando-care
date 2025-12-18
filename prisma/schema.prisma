@@ -75,7 +75,7 @@ model Settings {
   userId        String @unique
   lowThreshold  Int    @default(70)
   highThreshold Int    @default(180)
-  unit          String @default("mg/dL") // "mg/dL" | "mmol/L"
+  unit          String @default("mmol/L") // "mg/dL" | "mmol/L"
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

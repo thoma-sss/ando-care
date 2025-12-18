@@ -94,7 +94,7 @@ export function filterReadingsByTimeRange(
  */
 export function formatGlucoseStatsForStrava(
   stats: GlucoseStats,
-  unit: string = "mg/dL"
+  unit: string = "mmol/L"
 ): string {
   const lines = [
     `[CGM] In-range: ${stats.timeInRange}% | <70: ${stats.timeBelowRange}% | >180: ${stats.timeAboveRange}%`,
@@ -105,13 +105,63 @@ export function formatGlucoseStatsForStrava(
 }
 
 /**
- * Generate a compact glucose summary for Strava
+ * Generate progress bar for glucose zones
+ */
+function generateProgressBar(
+  timeLowPct: number,
+  timeInRangePct: number,
+  timeHighPct: number
+): string {
+  const blocks = 10;
+  const lowBlocks = Math.round((timeLowPct / 100) * blocks);
+  const highBlocks = Math.round((timeHighPct / 100) * blocks);
+  const inRangeBlocks = Math.max(0, blocks - lowBlocks - highBlocks);
+
+  return "🟥".repeat(Math.max(0, lowBlocks)) + 
+         "🟩".repeat(inRangeBlocks) + 
+         "🟨".repeat(Math.max(0, highBlocks));
+}
+
+/**
+ * Format glucose value with conversion if needed
+ */
+function formatValue(value: number, unit: string): string {
+  if (unit === "mmol/L") {
+    return `${mgdlToMmol(value)} mmol/L`;
+  }
+  return `${value} mg/dL`;
+}
+
+/**
+ * Generate a compact glucose summary for Strava with emojis
  */
 export function generateGlucoseSummary(
   stats: GlucoseStats,
-  unit: string = "mg/dL"
+  unit: string = "mmol/L",
+  activityId?: number | bigint
 ): string {
-  return `[CGM] In-range: ${stats.timeInRange}% | <70: ${stats.timeBelowRange}% | >180: ${stats.timeAboveRange}% | Avg: ${stats.average} ${unit} | Min: ${stats.min} | Max: ${stats.max}`;
+  const roundedInRange = Math.round(stats.timeInRange);
+  const progressBar = generateProgressBar(
+    stats.timeBelowRange,
+    stats.timeInRange,
+    stats.timeAboveRange
+  );
+
+  const avgFormatted = formatValue(stats.average, unit);
+  const minFormatted = formatValue(stats.min, unit);
+  const maxFormatted = formatValue(stats.max, unit);
+
+  let description = `🎯 ${roundedInRange}% in Range  ${progressBar}
+🩸 Avg : ${avgFormatted} - Min : ${minFormatted} - Max : ${maxFormatted}
+⚡ Powered by Ando Care ⚡`;
+
+  // Add link to detailed report if activityId is provided
+  if (activityId) {
+    const baseUrl = process.env.APP_BASE_URL || "https://ando.care";
+    description += `\n📈 Detailed CGM report: ${baseUrl}/activity/${activityId}`;
+  }
+
+  return description;
 }
 
 /**

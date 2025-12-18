@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         userId: user.id,
         lowThreshold: 70,
         highThreshold: 180,
-        unit: "mg/dL",
+        unit: "mmol/L",
       },
     });
 
