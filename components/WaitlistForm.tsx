@@ -107,9 +107,6 @@ export function WaitlistForm() {
           Join the waitlist
         </Button>
       </div>
-      <p className="mt-3 text-sm text-[#71717A] text-center sm:text-left">
-        Be among the first to try Ando
-      </p>
     </form>
   );
 }
