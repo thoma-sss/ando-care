@@ -47,8 +47,8 @@ function SensorPulse() {
         }}
       />
       {/* Sensor disc */}
-      <div className="absolute inset-5 rounded-full bg-[#111827] border border-[#FF6B35]/35 shadow-[0_0_70px_rgba(248,113,55,0.8)] overflow-hidden">
-        <div className="absolute inset-[14%] rounded-full bg-gradient-to-br from-slate-700 via-slate-900 to-black" />
+      <div className="absolute inset-5 rounded-full bg-[#CCCCCC] border border-[#FF6B35]/35 shadow-[0_0_70px_rgba(248,113,55,0.8)] overflow-hidden">
+        <div className="absolute inset-[14%] rounded-full" style={{ background: "linear-gradient(135deg, rgba(234, 225, 225, 0) 0%, rgba(255, 255, 255, 1) 100%)" }} />
         <div className="absolute inset-[42%] rounded-full bg-slate-500/40" />
         {/* Small center dot */}
         <div className="absolute inset-[47%] rounded-full bg-[#FF6B35]/80" />
