@@ -9,21 +9,24 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Ando | Your glucose, on every ride",
-  description: "Automatically add CGM data to your Strava activities. See your performance through a new lens.",
+  title: "Ando | Get the most of your CGM data",
+  description:
+    "Get the most of your CGM data with Ando. Automatically connect your sensor to your training and unlock deeper insights.",
   keywords: ["diabetes", "CGM", "Strava", "glucose", "cycling", "running", "fitness"],
   authors: [{ name: "Ando" }],
   openGraph: {
-    title: "Ando | Your glucose, on every ride",
-    description: "Automatically add CGM data to your Strava activities.",
+    title: "Ando | Get the most of your CGM data",
+    description:
+      "Get the most of your CGM data with Ando. Automatically connect your sensor to your training and unlock deeper insights.",
     url: "https://ando.care",
     siteName: "Ando",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ando | Your glucose, on every ride",
-    description: "Automatically add CGM data to your Strava activities.",
+    title: "Ando | Get the most of your CGM data",
+    description:
+      "Get the most of your CGM data with Ando. Automatically connect your sensor to your training and unlock deeper insights.",
   },
 };
 
